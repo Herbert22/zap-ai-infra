@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # --- Conexão WhatsApp ---
+  wppconnect:
+    image: wppconnect/wppconnect-server:latest
+    restart: always
+    environment:
+      - PORT=3000
+      - TOKEN_SECRET_KEY=${WPP_SECRET}
+    volumes:
+      - wpp_sessions:/usr/src/app/userData
+    depends_on:
+      - redis
+
+  # --- Cérebro (Python API) ---
+  backend:
+    build: ../zap-ai-backend # Vai buscar o Dockerfile na pasta vizinha
+    restart: always
+    environment:
+      - DB_URL=postgresql://postgres:${DB_PASSWORD}@db:5432/zap_ai
+      - REDIS_URL=redis://redis:6379
+      - WPP_URL=http://wppconnect:3000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - db
+      - redis
+      - wppconnect
+
+  # --- Banco de Dados ---
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_DB=zap_ai
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # --- Fila de Mensagens ---
+  redis:
+    image: redis:alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+
+  # --- Proxy Reverso (Acesso Externo) ---
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+    depends_on:
+      - backend
+      - wppconnect
+
+volumes:
+  wpp_sessions:
+  pgdata:
+  redis_data:
+  caddy_data:

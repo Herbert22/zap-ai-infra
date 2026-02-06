@@ -1,0 +1,19 @@
+# Configuração Caddy (Proxy)
+# Substitua 'localhost' pelo seu domínio em produção
+
+:80 {
+    # Rota API Backend
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    # Rota API WhatsApp (para o frontend gerar QR Code)
+    handle /wpp/* {
+        reverse_proxy wppconnect:3000
+    }
+
+    # Frontend (Angular - futuro)
+    # handle /* {
+    #     reverse_proxy web:80
+    # }
+}
